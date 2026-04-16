@@ -142,6 +142,12 @@ class StockDataFetcher:
             return 'a'
         if code in STOCK_NAMES:
             return 'a'
+        # 自动识别：纯字母代码视为美股（如 AAPL, TSLA）
+        if code.isalpha() and len(code) <= 5:
+            return 'us'
+        # 自动识别：5位数字视为港股（如 00700）
+        if code.isdigit() and len(code) == 5:
+            return 'hk'
         return None
 
     # -------------------------------------------------------------------------
@@ -476,4 +482,3 @@ class StockDataFetcher:
             'open': open_, 'high': high, 'low': low, 'close': close,
             'volume': vol, 'pctChg': pct
         })
-        return self._calculate_indicators(df)
