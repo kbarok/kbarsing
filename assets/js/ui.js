@@ -85,11 +85,8 @@ const KbarokUI = (function() {
     }
     
     // ==================== 创作按钮 ====================
+    // btnCreate removed from HTML — keeping function for compatibility
     function toggleCreate() {
-        const btn = cacheElement('btnCreate');
-        const state = getState();
-        state.isCreating = !state.isCreating;
-        if (btn) btn.textContent = t(state.isCreating ? 'btn.learn' : 'btn.create');
         showDevelopingModal();
     }
 
@@ -133,7 +130,8 @@ const KbarokUI = (function() {
             } else {
                 btnListen.textContent = state.audioPlaying ? '🔇' : '🎧';
             }
-            btnListen.classList.toggle('listen-active', state.audioPlaying);
+            btnListen.classList.toggle('playing', state.audioPlaying);
+            btnListen.classList.toggle('muted', !state.audioPlaying && !state.isPlaying);
         }
 
         // 探索/收起
@@ -146,14 +144,6 @@ const KbarokUI = (function() {
             }
             btnExplore.classList.toggle('active', state.exploreOpen);
         }
-
-        // 创作/学习
-        const btnCreate = cacheElement('btnCreate');
-        if (btnCreate) btnCreate.textContent = t(state.isCreating ? 'btn.learn' : 'btn.create');
-
-        // 开发（双语跟随全局语言）
-        const btnDevelop = cacheElement('btnDevelop');
-        if (btnDevelop) btnDevelop.textContent = isZh ? '开发' : 'Develop';
     }
     
     // ==================== 欢迎语 ====================
@@ -292,7 +282,7 @@ const KbarokUI = (function() {
             closeBtn2.addEventListener('click', () => hideModal('developModal'));
         }
 
-        // 开发按钮
+        // 开发按钮（已移除，保留事件绑定容错）
         const btnDevelop = cacheElement('btnDevelop');
         if (btnDevelop) {
             btnDevelop.addEventListener('click', () => toggleDevelop());

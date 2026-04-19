@@ -1,74 +1,39 @@
 /**
- * kbarok v9 - api.js
- * 统一 API 层
+ * kbarok v10 - api.js
+ * Pure frontend API layer (zero backend dependency)
+ * Delegates to AppConfig for config + Tencent Finance for K-line data
  */
 
-const KbarokAPI = (function() {
-    // 自动判断后端地址：本地/服务器直接用相对路径，Vercel 等外部域名用腾讯服务器
-    const BACKEND_URL = (function() {
-        const host = window.location.hostname;
-        // 本地开发 或 腾讯服务器自身访问 → 相对路径
-        if (host === 'localhost' || host === '127.0.0.1' || host === '101.35.217.113') {
-            return '';
-        }
-        // Vercel / 其他外部域名 → 指向腾讯服务器
-        return 'http://101.35.217.113';
-    })();
+const KbarokAPI = (function () {
+    console.log('[API] Pure frontend mode (zero backend)');
 
-    async function request(url, options = {}) {
-        const config = {
-            headers: { 'Content-Type': 'application/json' },
-            ...options
-        };
-        try {
-            const res = await fetch(BACKEND_URL + url, config);
-            const data = await res.json();
-            if (!res.ok) {
-                return { success: false, error: data.error || `HTTP ${res.status}` };
-            }
-            return data;
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    }
-
-    function post(url, body) {
-        return request(url, { method: 'POST', body: JSON.stringify(body) });
-    }
-
-    function get(url) {
-        return request(url, { method: 'GET' });
-    }
-
-    // K线数据
-    async function getKlineData(code, startDate, endDate) {
-        return post('/api/v2/kline', {
-            code,
-            start_date: startDate,
-            end_date: endDate
-        });
-    }
-
-    // 获取配置（颜色/乐器列表）
+    // Config: from local hardcoded data
     async function getConfig() {
-        return get('/api/v2/config');
+        return window.AppConfig.getConfig();
     }
 
-    // 生成音乐
+    // K-line: from Tencent Finance public API
+    async function getKlineData(code, startDate, endDate) {
+        return window.AppConfig.getKlineData(code, startDate, endDate);
+    }
+
+    // Music generation: handled entirely by frontend MusicGenerator
+    // This function is kept for API compatibility but does nothing
     async function generateMusic(code, params) {
-        return post('/api/v2/generate', {
-            code,
-            ...params
-        });
+        console.warn('[API] generateMusic() is now handled by MusicGenerator in app.js');
+        return { success: false, error: 'Use MusicGenerator.generateAudio() directly' };
+    }
+
+    // Resolve URL: passthrough (no backend audio server)
+    function resolveUrl(relativeUrl) {
+        return relativeUrl; // audio is now generated locally as blob
     }
 
     return {
-        request,
-        get,
-        post,
-        getKlineData,
         getConfig,
-        generateMusic
+        getKlineData,
+        generateMusic,
+        resolveUrl
     };
 })();
 

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh" id="htmlRoot">
 <head>
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://web.ifzq.gtimg.cn https://*.gtimg.cn;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>K线会唱歌 · kbars sing</title>
@@ -8,6 +9,7 @@
 </head>
 <body>
     <div class="app">
+        <!-- ====== 顶部栏 ====== -->
         <header class="topbar">
             <div class="topbar-brand">
                 <div class="brand-logo-wrap">
@@ -26,79 +28,82 @@
             </button>
         </header>
 
+        <!-- ====== 视频/K线区域 ====== -->
         <main class="video-area">
-            <div class="info-bar" id="infoBar" style="display: none;">
-                <div class="info-row" id="infoRow">
-                    <span class="stock-code" id="stockCode">--</span>
-                    <span class="stock-price" id="stockPrice">--</span>
-                    <span class="stock-change" id="stockChange">--</span>
-                    <span class="stock-amount" id="stockAmount">--</span>
-                    <span class="divider">|</span>
-                    <span class="stock-range" id="stockRange">--</span>
-                    <span class="divider">|</span>
-                    <span class="music-item" id="musicInstrument">🎹 --</span>
-                    <span class="music-item" id="musicRhythm">🥁 --</span>
-                    <span class="music-item" id="musicSynth">🔥 --</span>
-                    <span class="music-item" id="musicSpeed">⚡ --</span>
-                    <span class="record-info" id="recordInfo" style="display:none;">
-                        <span class="divider">|</span>
-                        <span class="record-dot">⏺</span>
-                        <span class="record-label" id="recordLabel">  录制中  </span>
-                        <span class="record-time" id="recordTime">  00:00  </span>
-                    </span>
-                </div>
-            </div>
-
-            <canvas id="klineCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none;"></canvas>
-            <video id="mainVideo" autoplay playsinline></video>
+            <video id="mainVideo" class="main-video" loop playsinline muted preload="auto"
+                   src="assets/video/video1_h264.mp4"></video>
+            <canvas id="klineCanvas" class="kline-canvas"></canvas>
             <div class="video-placeholder" id="videoPlaceholder">
                 <span>加载中…</span>
             </div>
         </main>
 
-        <nav class="controlbar">
-            <button class="ctrl-btn" id="btnFullscreen">全屏</button>
-            <button class="ctrl-btn" id="btnStop">停止</button>
-            <button class="ctrl-btn listen-btn" id="btnListen">试听</button>
-            <button class="ctrl-btn" id="btnExplore">探索</button>
-            <button class="ctrl-btn" id="btnDownload">下载</button>
-        </nav>
-
-        <footer class="footer-tip" id="footerTip">输入标的 → 选择音色/风格/速度 → 创作</footer>
-
-        <div class="explore-wrapper" id="exploreWrapper">
-            <div class="explore-panel">
-                <div class="explore-row">
-                    <label class="explore-label" id="labelInstrument">  音色    </label>
-                    <select class="explore-select" id="instrumentSelect">
-                        <option value="">加载中…</option>
-                    </select>
-                    <label class="explore-label" id="labelRhythm">  节奏    </label>
-                    <select class="explore-select" id="rhythmSelect">
-                        <option value="">加载中…</option>
-                    </select>
-                    <label class="explore-label" id="labelSpeed">  速度    </label>
-                    <div class="speed-control">
-                        <span class="speed-tag" id="speedMin">  慢    </span>
-                        <input type="range" class="speed-slider" id="speedSlider" min="5" max="40" step="5" value="10">
-                        <span class="speed-val" id="speedVal">1.0</span>
-                        <span class="speed-tag" id="speedMax">  快    </span>
-                    </div>
-                </div>
-                <div class="explore-row explore-row-2">
-                    <label class="explore-label" id="labelCode">  标的    </label>
-                    <input type="text" class="explore-input" id="codeInput" placeholder="代码" maxlength="20">
-                    <input type="date" class="explore-date" id="startDateInput" title="开始日期">
-                    <input type="date" class="explore-date" id="endDateInput" title="结束日期">
-                    <button class="ctrl-btn" id="btnCreate">创作</button>
-                    <button class="ctrl-btn generate-btn" id="btnGenerate">  音乐生成  </button>
-                    <button class="ctrl-btn" id="btnDevelop">开发</button>
-                </div>
-                <div id="genDebug" style="text-align:center;color:#165DFF;font-size:12px;padding:4px;min-height:20px"></div>
+        <!-- ====== 信息条（覆盖在视频上方） ====== -->
+        <div class="info-bar" id="infoBar" style="display:none;">
+            <div class="info-row">
+                <span class="stock-code" id="stockCode">--</span>
+                <span class="divider">|</span>
+                <span class="stock-price" id="stockPrice">--</span>
+                <span class="stock-change up" id="stockChange">--</span>
+                <span class="stock-amount" id="stockAmount"></span>
+                <span class="divider">|</span>
+                <span id="stockRange"></span>
+                <span class="divider">|</span>
+                <span class="music-item" id="musicInstrument"></span>
+                <span class="music-item" id="musicRhythm"></span>
+                <span class="music-item" id="musicSynth"></span>
+                <span class="music-item" id="musicSpeed"></span>
+                <span class="record-info" id="recordInfo" style="display:none;">
+                    <span class="record-dot">●</span>
+                    <span class="record-label">REC</span>
+                    <span class="record-time" id="recordTime">00:00</span>
+                </span>
             </div>
         </div>
+
+        <!-- ====== 探索面板（可收起） ====== -->
+        <div class="explore-wrapper" id="exploreWrapper">
+            <div class="explore-panel" id="explorePanel">
+                <div class="explore-row">
+                    <span class="explore-label" id="labelInstrument">音色</span>
+                    <select class="explore-select" id="instrumentSelect">
+                        <option>古筝</option>
+                    </select>
+                    <span class="explore-label" id="labelRhythm">节奏</span>
+                    <select class="explore-select" id="rhythmSelect">
+                        <option>Amapiano</option>
+                    </select>
+                    <span class="explore-label" id="labelSpeed">加速度</span>
+                    <select class="explore-select" id="speedSelect">
+                        <option value="1">1x</option>
+                        <option value="2" selected>2x</option>
+                        <option value="3">3x</option>
+                    </select>
+                </div>
+                <div class="explore-row explore-row-2">
+                    <input type="text" class="code-input" id="codeInput" placeholder="股票代码 如 300025" value="300025">
+                    <span style="color:var(--text-2);">~</span>
+                    <input type="date" class="explore-date" id="startDateInput">
+                    <input type="date" class="explore-date" id="endDateInput">
+                    <button class="explore-gen-btn" id="btnGen">音画生成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 控制栏 ====== -->
+        <footer class="controlbar">
+            <button class="ctrl-btn" id="btnFullscreen" title="全屏">全屏</button>
+            <button class="ctrl-btn" id="btnStop" title="播放/停止">停止</button>
+            <button class="ctrl-btn ctrl-btn-listen" id="btnListen" title="试听/静音">试听</button>
+            <button class="ctrl-btn" id="btnExplore" title="探索/收起">探索</button>
+            <button class="ctrl-btn" id="btnDownload" title="下载/分享">下载</button>
+        </footer>
+
+        <!-- ====== 底部提示 ====== -->
+        <div class="footer-tip" id="footerTip">致敬禅师，探索无尽的数字音乐世界</div>
     </div>
 
+    <!-- ====== 创作弹窗 ====== -->
     <div class="modal-overlay" id="developingModal">
         <div class="modal-card">
             <img class="modal-creating-img" id="modalImgZh" src="assets/img/zhchuangzuo.png" alt="创作中">
@@ -111,14 +116,14 @@
         </div>
     </div>
 
-    <!-- 开发专属弹窗 -->
+    <!-- ====== 开发弹窗 ====== -->
     <div class="modal-overlay" id="developModal">
         <div class="modal-card">
             <img class="modal-creating-img" id="modalDevImgZh" src="assets/img/zhchuangzuo_develop.png" alt="开发中">
             <img class="modal-creating-img" id="modalDevImgEn" src="assets/img/enchuangzuo_develop.png" alt="Developing" style="display:none;">
             <div class="modal-content">
-                <div class="modal-title" id="devTitle2">功能开发中</div>
-                <div class="modal-desc" id="devDesc2">指标与数据共振，探索量化策略的边界</div>
+                <div class="modal-title" id="devTitle2">K线会唱歌</div>
+                <div class="modal-desc" id="devDesc2">让指标与数据共振，探索量化策略的边界</div>
                 <button class="modal-close" id="devCloseBtn2">关闭</button>
             </div>
         </div>
@@ -127,10 +132,12 @@
     <div id="toast"></div>
     <div id="loadingOverlay"><div class="spinner"></div></div>
 
-    <!-- 脚本加载顺序：依赖关系 -->
+    <!-- ====== 脚本加载顺序（依赖关系） ====== -->
     <script src="assets/js/core.js"></script>
     <script src="assets/js/events.js"></script>
-    <script src="assets/js/api.js?v=20250416a"></script>
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/music-generator.js"></script>
     <script src="assets/js/kline.js"></script>
     <script src="assets/js/recorder.js"></script>
     <script src="assets/js/player.js"></script>

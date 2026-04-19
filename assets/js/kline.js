@@ -364,8 +364,17 @@ class KlineCanvas {
     bindAudio(audioElement) {
         this.audioElement = audioElement;
         const onTimeUpdate = () => {
-            if (!this.entryComplete) return;
+            // 音频时间更新始终驱动K线播放进度（不管入场动画是否完成）
             this.playProgress = audioElement.currentTime / (audioElement.duration || 1);
+            // 如果入场动画未完成，先完成它
+            if (!this.entryComplete) {
+                this.entryComplete = true;
+                this.clipProgress = 1;
+                if (this.entryAnimationId) {
+                    cancelAnimationFrame(this.entryAnimationId);
+                    this.entryAnimationId = null;
+                }
+            }
             this.draw();
         };
         audioElement.addEventListener('timeupdate', onTimeUpdate);

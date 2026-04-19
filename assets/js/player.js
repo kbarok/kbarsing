@@ -9,11 +9,15 @@ const KbarokPlayer = (function() {
     let isPlaying = false;
     let isMuted = false;
     let initDone = false;
+    
+    // 检测微信环境
+    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+    if (isWechat) {
+        console.log('[Player] 微信环境：禁用自动播放');
+    }
 
     const videos = [
-        'assets/video/video1.mp4',
-        'assets/video/video2.mp4',
-        'assets/video/video3.mp4'
+        'assets/video/video1_h264.mp4'
     ];
 
     function getVideo() {
@@ -27,20 +31,28 @@ const KbarokPlayer = (function() {
         const video = getVideo();
         if (!video) return;
 
-        // 默认静音播放背景视频
-        video.src = videos[currentVideoIndex];
-        video.muted = true;
-        video.loop = true;
-        video.autoplay = true;
-        video.playsInline = true;
-        isPlaying = true;
-        isMuted = true;
+        // 微信环境：不自动播放，等待用户点击
+        if (isWechat) {
+            video.src = videos[currentVideoIndex];
+            video.muted = true;
+            video.loop = true;
+            video.playsInline = true;
+            isPlaying = false;
+            isMuted = true;
+            console.log('[Player] 微信环境初始化完成，等待用户交互');
+        } else {
+            // 默认静音播放背景视频
+            video.src = videos[currentVideoIndex];
+            video.muted = true;
+            video.loop = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            isPlaying = true;
+            isMuted = true;
+        }
 
-        video.addEventListener('ended', () => {
-            if (!window.DraftRecorder?.isRecording()) {
-                next();
-            }
-        });
+        // ended 事件已被清空，不再监听
+        // loop=true 由浏览器自动处理循环，不走 ended 事件
 
         video.addEventListener('error', () => {
             console.warn('[Player] 视频加载失败，尝试下一个');
