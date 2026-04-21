@@ -100,8 +100,8 @@
         }, 1000);
         recordState.timer = timer;
 
-        // 最多60秒自动停止
-        autoDownloadTimer = setTimeout(stopRecording, 60000);
+        // 最多15秒自动停止
+        autoDownloadTimer = setTimeout(stopRecording, 15000);
     }
 
     function stopRecording() {
