@@ -1,185 +1,302 @@
 /**
- * kbarok v10 - config.js
- * Pure frontend config + stock data (Tencent Finance API)
- * Zero backend dependency
+ * kbarsing - 配置文件（纯前端化）
+ * 音色、节奏、映射策略 - 从 settings.py 搬迁
  */
 
-const AppConfig = (function () {
-    // ---- Hardcoded config (replaces /api/v2/config) ----
-    const INSTRUMENTS = ['钢琴', '古筝', '小提琴', '电吉他', 'Future_Bass_Lead', 'KPop_Synth_Lead', 'Amapiano_Log_Drum'];
-    const RHYTHM_STYLES = ['标准4拍', 'KPop_精准鼓组', 'Amapiano_非洲节奏', 'Synthwave_复古迪斯科'];
+window.KbarokConfig = {
+    // ==================== 音乐参数 ====================
+    music: {
+        sampleRate: 48000,
+        baseInterval: 0.5,  // 2拍/秒 = 60BPM（慢速，适合K线节奏感）
+        pitchRange: 36,
+        velocityMin: 35,
+        velocityMax: 115,
+        defaultSpeed: 1.0,
+        minSpeed: 0.5,
+        maxSpeed: 5.0
+    },
 
-    // ---- Tencent Finance API (free, CORS supported) ----
-    // URL pattern: https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={market}{code},day,,,50,qfq
-    // market: sz / sh   (A股前缀)
-    // period: day / week / month
-    // count: 50 (recent N bars)
-    function buildTencentUrl(marketCode, count) {
-        // marketCode: "sz300025" or "sh600519"
-        return `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${marketCode},day,,,${count || 50},qfq&_=${Date.now()}`;
-    }
+    // ==================== 音色列表（16种）====================
+    instruments: [
+        "Future_Bass_Lead",
+        "Future_Bass_Pad", 
+        "Amapiano_Log_Drum",
+        "Afro_Conga",
+        "DnB_Bass",
+        "Synthwave_Juno",
+        "Synthwave_Lead",
+        "Retro_Pad",
+        "KPop_Double_Bass",
+        "KPop_Synth_Lead",
+        "KPop_Vocal_Pad",
+        "钢琴",
+        "小提琴",
+        "电吉他",
+        "古筝",
+        "二胡"
+    ],
 
-    // Normalize user input to "market + code" format
-    function normalizeCode(code) {
-        code = (code || '').trim().replace(/\s+/g, '');
-        if (!code) return null;
-        // Already has prefix
-        if (/^(sz|sh)\d{6}$/.test(code)) return code;
-        // Pure 6 digits -> auto detect market (3/0 = sz, 6 = sh)
-        if (/^\d{6}$/.test(code)) {
-            const first = code[0];
-            return (first === '6' || first === '9') ? 'sh' + code : 'sz' + code;
+    // ==================== 节奏风格（8种）====================
+    rhythmStyles: [
+        "标准4拍",
+        "KPop_精准鼓组",
+        "Amapiano_非洲节奏",
+        "Synthwave_复古迪斯科",
+        "DnB_快节奏碎拍",
+        "Afrobeats_世界风",
+        "极简留白_缓拍",
+        "史诗电影_慢板"
+    ],
+
+    // ==================== 合成预设 ====================
+    synthPresets: {
+        "合成1_Future_Bass": "Future_Bass_Lead",
+        "合成2_KPop_Lead": "KPop_Synth_Lead",
+        "合成3_Synthwave_复古": "Synthwave_Juno",
+        "合成4_Amapiano_非洲底鼓": "Amapiano_Log_Drum",
+        "合成5_DnB_电子贝斯": "DnB_Bass",
+        "合成6_史诗垫音": "Retro_Pad",
+        "合成7_KPop双低音": "KPop_Double_Bass",
+        "合成8_空灵人声垫": "KPop_Vocal_Pad"
+    },
+
+    // ==================== 节奏模式定义 ====================
+    rhythms: {
+        "标准4拍": {
+            kick:  [1,0,0,0, 1,0,0,0],
+            snare: [0,0,1,0, 0,0,1,0],
+            hihat: [0,1,0,1, 0,1,0,1],
+            perc:  [0,0,0,0, 0,0,0,0]
+        },
+        "KPop_精准鼓组": {
+            kick:  [1,0,0,1, 1,0,0,1],
+            snare: [0,0,1,0, 0,0,1,1],
+            hihat: [0,1,1,1, 0,1,1,1],
+            perc:  [0,1,0,1, 1,0,1,0]
+        },
+        "Amapiano_非洲节奏": {
+            kick:  [1,0,1,0, 0,1,0,1],
+            snare: [0,0,1,0, 0,1,0,0],
+            hihat: [1,1,1,1, 1,1,1,1],
+            perc:  [1,0,1,0, 1,0,1,0]
+        },
+        "Synthwave_复古迪斯科": {
+            kick:  [1,0,0,0, 1,0,1,0],
+            snare: [0,0,1,0, 0,0,1,0],
+            hihat: [0,1,1,1, 0,1,1,1],
+            perc:  [0,0,1,0, 0,0,1,0]
+        },
+        "DnB_快节奏碎拍": {
+            kick:  [1,0,0,1, 0,1,0,1],
+            snare: [0,0,1,0, 1,0,0,1],
+            hihat: [1,1,1,1, 1,1,1,1],
+            perc:  [1,1,1,1, 1,1,1,1]
+        },
+        "Afrobeats_世界风": {
+            kick:  [1,0,1,0, 1,0,0,1],
+            snare: [0,0,1,0, 0,1,0,0],
+            hihat: [1,1,0,1, 1,1,0,1],
+            perc:  [1,0,1,1, 1,0,1,1]
+        },
+        "极简留白_缓拍": {
+            kick:  [1,0,0,0, 0,0,1,0],
+            snare: [0,0,0,0, 0,0,1,0],
+            hihat: [0,1,0,1, 0,0,0,1],
+            perc:  [0,0,0,0, 0,1,0,0]
+        },
+        "史诗电影_慢板": {
+            kick:  [1,0,0,0, 0,0,0,0],
+            snare: [0,0,0,0, 1,0,0,0],
+            hihat: [0,0,1,0, 0,0,1,0],
+            perc:  [0,0,0,0, 0,0,0,0]
         }
-        return null;
-    }
+    },
 
-    // Parse Tencent API response to OHLCV arrays
-    function parseTencentResponse(json, code) {
-        try {
-            const dayData = json.data[code];
-            if (!dayData || !dayData.day || dayData.day.length === 0) {
-                return null;
-            }
-            const raw = dayData.day; // array of "date,open,close,high,low,volume" strings
-            const dates = [], opens = [], highs = [], lows = [], closes = [], volumes = [];
-            for (const row of raw) {
-                const parts = row.split(',');
-                if (parts.length < 6) continue;
-                dates.push(parts[0]);
-                opens.push(parseFloat(parts[1]));
-                closes.push(parseFloat(parts[2]));
-                highs.push(parseFloat(parts[3]));
-                lows.push(parseFloat(parts[4]));
-                volumes.push(parseFloat(parts[5]));
-            }
-            return { dates, opens, highs, lows, closes, volumes };
-        } catch (e) {
-            console.error('[Config] Parse error:', e);
-            return null;
+    // ==================== 乐器音色定义 ====================
+    instrumentConfigs: {
+        // === Future Bass ===
+        "Future_Bass_Lead": {
+            waveform: "saw",
+            harmonics: [1, 2, 3, 4, 5],
+            adsr: { attack: 0.03, decay: 0.2, sustain: 0.85, release: 0.7 },
+            filter: { type: "lowpass", cutoff: 3600, resonance: 0.6 },
+            chorus: 1.0, reverb: 1.0, delay: 0.4,
+            pan: 0.0, stereo: 0.9
+        },
+        "Future_Bass_Pad": {
+            waveform: "sine",
+            harmonics: [1, 1.5, 2, 3],
+            adsr: { attack: 0.4, decay: 0.4, sustain: 0.9, release: 1.2 },
+            filter: { type: "lowpass", cutoff: 1600, resonance: 0.4 },
+            chorus: 1.0, reverb: 1.0, delay: 0.2,
+            pan: 0.0, stereo: 1.0
+        },
+        // === Amapiano ===
+        "Amapiano_Log_Drum": {
+            waveform: "sine",
+            harmonics: [1, 0.5, 0.25],
+            adsr: { attack: 0.002, decay: 0.35, sustain: 0.5, release: 0.6 },
+            filter: { type: "lowpass", cutoff: 220, resonance: 0.8 },
+            subBass: 1.4, reverb: 0.3,
+            pan: -0.6, octaveShift: -2
+        },
+        "Afro_Conga": {
+            waveform: "triangle",
+            harmonics: [1, 2],
+            adsr: { attack: 0.001, decay: 0.06, sustain: 0.2, release: 0.08 },
+            filter: { type: "bandpass", cutoff: 800, resonance: 0.5 },
+            pan: 0.4
+        },
+        // === DnB ===
+        "DnB_Bass": {
+            waveform: "saw",
+            harmonics: [1, 2, 3, 4, 5],
+            adsr: { attack: 0.002, decay: 0.08, sustain: 0.8, release: 0.12 },
+            filter: { type: "lowpass", cutoff: 900, resonance: 0.7 },
+            distortion: 0.25, stereo: 0.7,
+            pan: -0.3, octaveShift: -1
+        },
+        // === Synthwave ===
+        "Synthwave_Juno": {
+            waveform: "saw",
+            harmonics: [1, 2, 3],
+            adsr: { attack: 0.08, decay: 0.25, sustain: 0.75, release: 0.4 },
+            filter: { type: "lowpass", cutoff: 2400, resonance: 0.5 },
+            chorus: 1.0, stereo: 0.8,
+            pan: 0.0
+        },
+        "Synthwave_Lead": {
+            waveform: "square",
+            harmonics: [1, 2, 3, 4],
+            adsr: { attack: 0.02, decay: 0.15, sustain: 0.8, release: 0.3 },
+            filter: { type: "lowpass", cutoff: 3800, resonance: 0.6 },
+            chorus: 0.8, delay: 0.3,
+            pan: 0.0, stereo: 0.85
+        },
+        "Retro_Pad": {
+            waveform: "sine",
+            harmonics: [1, 1.25, 1.5, 2],
+            adsr: { attack: 0.5, decay: 0.4, sustain: 0.9, release: 1.4 },
+            filter: { type: "lowpass", cutoff: 1400, resonance: 0.3 },
+            chorus: 1.0, reverb: 1.0,
+            pan: 0.0, stereo: 1.0
+        },
+        // === K-POP ===
+        "KPop_Double_Bass": {
+            waveform: "saw",
+            harmonics: [1, 0.5, 2, 3],
+            adsr: { attack: 0.003, decay: 0.07, sustain: 0.92, release: 0.15 },
+            filter: { type: "lowpass", cutoff: 750, resonance: 0.7 },
+            subBass: 1.3, distortion: 0.15,
+            pan: -0.4, octaveShift: -1
+        },
+        "KPop_Synth_Lead": {
+            waveform: "square",
+            harmonics: [1, 2, 3, 5],
+            adsr: { attack: 0.01, decay: 0.12, sustain: 0.85, release: 0.25 },
+            filter: { type: "lowpass", cutoff: 4200, resonance: 0.6 },
+            chorus: 0.6, reverb: 0.6,
+            pan: 0.0, stereo: 0.9
+        },
+        "KPop_Vocal_Pad": {
+            waveform: "sine",
+            harmonics: [1, 1.5],
+            adsr: { attack: 0.25, decay: 0.25, sustain: 0.9, release: 0.9 },
+            filter: { type: "lowpass", cutoff: 1100, resonance: 0.3 },
+            chorus: 1.0, reverb: 1.0,
+            pan: 0.0, stereo: 1.0
+        },
+        // === 传统乐器 ===
+        "钢琴": {
+            waveform: "triangle",
+            harmonics: [1, 2, 4],
+            adsr: { attack: 0.005, decay: 0.15, sustain: 0.75, release: 0.4 },
+            reverb: { roomSize: 0.3 },
+            pan: 0.0
+        },
+        "小提琴": {
+            waveform: "saw",
+            harmonics: [1, 2, 3],
+            adsr: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 },
+            pan: -0.2
+        },
+        "电吉他": {
+            waveform: "square",
+            harmonics: [1, 3],
+            adsr: { attack: 0.005, decay: 0.1, sustain: 0.6, release: 0.15 },
+            pan: 0.2
+        },
+        "古筝": {
+            waveform: "triangle",
+            harmonics: [1, 2, 3, 5],
+            adsr: { attack: 0.008, decay: 0.4, sustain: 0.5, release: 0.6 },
+            reverb: { roomSize: 0.5 },
+            pan: 0.0
+        },
+        "二胡": {
+            waveform: "saw",
+            harmonics: [1, 2, 3],
+            adsr: { attack: 0.02, decay: 0.15, sustain: 0.8, release: 0.3 },
+            vibrato: { rate: 5, depth: 0.02 },
+            pan: -0.1
+        }
+    },
+
+    // ==================== 映射策略 ====================
+    mapping: {
+        priceToPitch: {
+            minPitch: 45,
+            maxPitch: 88,
+            scale: "pentatonic"  // pentatonic | major | minor
+        },
+        volumeToVelocity: {
+            minVelocity: 35,
+            maxVelocity: 115
+        },
+        volatilityToDuration: {
+            minDuration: 0.3,
+            maxDuration: 1.5
+        }
+    },
+
+    // ==================== 音阶定义 ====================
+    scales: {
+        pentatonic: [0, 2, 4, 7, 9],      // 五声音阶
+        major: [0, 2, 4, 5, 7, 9, 11],    // 大调
+        minor: [0, 2, 3, 5, 7, 8, 10]     // 小调
+    },
+
+    // ==================== 动态映射 ====================
+    dynamics: {
+        pp: { velocityMult: 0.35, harmonicMult: 0.65 },
+        p:  { velocityMult: 0.55, harmonicMult: 0.80 },
+        mp: { velocityMult: 0.70, harmonicMult: 0.90 },
+        mf: { velocityMult: 0.85, harmonicMult: 1.00 },
+        f:  { velocityMult: 0.95, harmonicMult: 1.10 },
+        ff: { velocityMult: 1.00, harmonicMult: 1.15 }
+    },
+
+    // ==================== 音色映射（涨跌）====================
+    timbreMappings: {
+        bright: {
+            filterCutoffMult: 1.45,
+            resonanceMult: 1.2,
+            reverbMult: 1.2,
+            chorusMult: 1.2
+        },
+        dark: {
+            filterCutoffMult: 0.65,
+            resonanceMult: 0.85,
+            reverbMult: 0.8,
+            chorusMult: 0.7
+        },
+        normal: {
+            filterCutoffMult: 1.0,
+            resonanceMult: 1.0,
+            reverbMult: 1.0,
+            chorusMult: 1.0
         }
     }
+};
 
-    // ---- Technical indicators (calculated locally) ----
-    function calcMA(closes, period) {
-        const result = [];
-        for (let i = 0; i < closes.length; i++) {
-            if (i < period - 1) { result.push(null); continue; }
-            let sum = 0;
-            for (let j = i - period + 1; j <= i; j++) sum += closes[j];
-            result.push(sum / period);
-        }
-        return result;
-    }
-
-    function calcEMA(values, period) {
-        if (values.length === 0) return [];
-        const k = 2 / (period + 1);
-        const result = [values[0]];
-        for (let i = 1; i < values.length; i++) {
-            result.push(values[i] * k + result[i - 1] * (1 - k));
-        }
-        return result;
-    }
-
-    function calcMACD(closes, fast, slow, signal) {
-        fast = fast || 12; slow = slow || 26; signal = signal || 9;
-        const emaFast = calcEMA(closes, fast);
-        const emaSlow = calcEMA(closes, slow);
-        const dif = emaFast.map((v, i) => v - emaSlow[i]);
-        const dea = calcEMA(dif, signal);
-        const histogram = dif.map((v, i) => Math.round((v - dea[i]) * 100) / 100);
-        return {
-            dif: dif.map(v => Math.round(v * 100) / 100),
-            dea: dea.map(v => Math.round(v * 100) / 100),
-            histogram
-        };
-    }
-
-    function calcKDJ(highs, lows, closes, n, m1, m2) {
-        n = n || 9; m1 = m1 || 3; m2 = m2 || 3;
-        const rsv = [], kArr = [], dArr = [], jArr = [];
-        let prevK = 50, prevD = 50;
-        for (let i = 0; i < closes.length; i++) {
-            const start = Math.max(0, i - n + 1);
-            let highest = -Infinity, lowest = Infinity;
-            for (let j = start; j <= i; j++) {
-                if (highs[j] > highest) highest = highs[j];
-                if (lows[j] < lowest) lowest = lows[j];
-            }
-            const rsvVal = highest === lowest ? 50 : ((closes[i] - lowest) / (highest - lowest)) * 100;
-            rsv.push(rsvVal);
-            const k = (2 / m1) * prevK + (1 - 2 / m1) * rsvVal;
-            const d = (2 / m2) * prevD + (1 - 2 / m2) * k;
-            const j = 3 * k - 2 * d;
-            kArr.push(Math.round(k * 100) / 100);
-            dArr.push(Math.round(d * 100) / 100);
-            jArr.push(Math.round(j * 100) / 100);
-            prevK = k; prevD = d;
-        }
-        return { k: kArr, d: dArr, j: jArr };
-    }
-
-    // ---- Public API ----
-    async function getConfig() {
-        return {
-            success: true,
-            instruments: INSTRUMENTS,
-            rhythm_styles: RHYTHM_STYLES
-        };
-    }
-
-    async function getKlineData(code, startDate, endDate) {
-        const normalized = normalizeCode(code);
-        if (!normalized) return { success: false, error: 'Invalid code' };
-
-        try {
-            const url = buildTencentUrl(normalized, 60);
-            console.log('[API] Fetching kline from Tencent:', url);
-            const res = await fetch(url);
-            const json = await res.json();
-
-            const ohlcv = parseTencentResponse(json, normalized);
-            if (!ohlcv || ohlcv.dates.length === 0) {
-                return { success: false, error: 'No data returned' };
-            }
-
-            // Calculate technical indicators locally
-            const ma5 = calcMA(ohlcv.closes, 5);
-            const ma10 = calcMA(ohlcv.closes, 10);
-            const macd = calcMACD(ohlcv.closes);
-            const kdj = calcKDJ(ohlcv.highs, ohlcv.lows, ohlcv.closes);
-
-            const n = ohlcv.dates.length;
-            console.log('[API] Kline data loaded:', n, 'bars for', normalized);
-
-            return {
-                success: true,
-                kline: {
-                    code: normalized,
-                    n_points: n,
-                    dates: ohlcv.dates,
-                    opens: ohlcv.opens,
-                    highs: ohlcv.highs,
-                    lows: ohlcv.lows,
-                    closes: ohlcv.closes,
-                    volumes: ohlcv.volumes,
-                    ma5, ma10,
-                    macd, kdj
-                }
-            };
-        } catch (e) {
-            console.error('[API] Kline fetch error:', e);
-            return { success: false, error: e.message };
-        }
-    }
-
-    return {
-        getConfig,
-        getKlineData,
-        normalizeCode,
-        INSTRUMENTS,
-        RHYTHM_STYLES
-    };
-})();
-
-window.AppConfig = AppConfig;
+console.log('[Config] KbarokConfig loaded, instruments:', KbarokConfig.instruments.length);

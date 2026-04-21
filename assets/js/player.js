@@ -1,24 +1,14 @@
 /**
  * kbarok v9 - player.js
- * 视频/音频播放控制
- * 支持多视频轮播、音量控制
+ * 视频单曲循环 + 音频播放控制
  */
 
 const KbarokPlayer = (function() {
-    let currentVideoIndex = 0;
     let isPlaying = false;
     let isMuted = false;
     let initDone = false;
-    
-    // 检测微信环境
-    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
-    if (isWechat) {
-        console.log('[Player] 微信环境：禁用自动播放');
-    }
 
-    const videos = [
-        'assets/video/video1_h264.mp4'
-    ];
+    const VIDEO_SRC = 'assets/video/video2.mp4';
 
     function getVideo() {
         return document.getElementById('mainVideo');
@@ -31,35 +21,18 @@ const KbarokPlayer = (function() {
         const video = getVideo();
         if (!video) return;
 
-        // 微信环境：不自动播放，等待用户点击
-        if (isWechat) {
-            video.src = videos[currentVideoIndex];
-            video.muted = true;
-            video.loop = true;
-            video.playsInline = true;
-            isPlaying = false;
-            isMuted = true;
-            console.log('[Player] 微信环境初始化完成，等待用户交互');
-        } else {
-            // 默认静音播放背景视频
-            video.src = videos[currentVideoIndex];
-            video.muted = true;
-            video.loop = true;
-            video.autoplay = true;
-            video.playsInline = true;
-            isPlaying = true;
-            isMuted = true;
-        }
-
-        // ended 事件已被清空，不再监听
-        // loop=true 由浏览器自动处理循环，不走 ended 事件
+        video.src = VIDEO_SRC;
+        video.muted = true;
+        video.loop = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        isPlaying = true;
+        isMuted = true;
 
         video.addEventListener('error', () => {
-            console.warn('[Player] 视频加载失败，尝试下一个');
-            next();
+            console.warn('[Player] 视频加载失败:', VIDEO_SRC);
         });
 
-        // 同步核心状态
         if (window.KbarokCore) {
             window.KbarokCore.state.isPlaying = true;
             window.KbarokCore.state.audioPlaying = false;
@@ -67,12 +40,8 @@ const KbarokPlayer = (function() {
     }
 
     function getCurrentAudio() {
-        // 优先返回正在播放的音频元素
         const kbarokAudio = document.getElementById('kbarokAudio');
-        if (kbarokAudio) {
-            return kbarokAudio;
-        }
-        return getVideo();
+        return kbarokAudio || getVideo();
     }
 
     function play() {
@@ -110,23 +79,7 @@ const KbarokPlayer = (function() {
     function next() {
         const kbarokAudio = document.getElementById('kbarokAudio');
         if (kbarokAudio) {
-            // 音画播放时，next按钮也作为暂停/继续按钮
             toggle();
-        } else {
-            // 预制视频时，切换到下一个视频
-            currentVideoIndex = (currentVideoIndex + 1) % videos.length;
-            const video = getVideo();
-            if (!video) return;
-            const wasPlaying = !video.paused && !isMuted;
-            video.src = videos[currentVideoIndex];
-            video.muted = isMuted;
-            if (wasPlaying || (isPlaying && !isMuted)) {
-                video.play().catch(() => {});
-            }
-            if (window.KbarokCore) {
-                window.KbarokCore.state.currentVideo = currentVideoIndex + 1;
-            }
-            if (window.AppEvents) window.AppEvents.emit('player:next', { index: currentVideoIndex });
         }
     }
 
@@ -142,11 +95,9 @@ const KbarokPlayer = (function() {
     function toggleAudio() {
         const kbarokAudio = document.getElementById('kbarokAudio');
         if (kbarokAudio) {
-            // 控制生成的音频
             kbarokAudio.muted = !kbarokAudio.muted;
             if (window.KbarokCore) window.KbarokCore.state.audioPlaying = !kbarokAudio.muted;
         } else {
-            // 控制预制视频的静音状态
             setMuted(!isMuted);
         }
         syncButtons();
@@ -157,13 +108,11 @@ const KbarokPlayer = (function() {
         const btnListen = document.getElementById('btnListen');
 
         if (btnStop && window.KbarokCore) {
-            const label = window.KbarokCore.t(isPlaying ? 'btn.stop' : 'btn.play');
-            btnStop.textContent = label;
+            btnStop.textContent = window.KbarokCore.t(isPlaying ? 'btn.stop' : 'btn.play');
         }
 
         if (btnListen && window.KbarokCore) {
-            const label = window.KbarokCore.t(isMuted ? 'btn.listen' : 'btn.mute');
-            btnListen.textContent = label;
+            btnListen.textContent = window.KbarokCore.t(isMuted ? 'btn.listen' : 'btn.mute');
             btnListen.classList.toggle('listen-active', !isMuted);
         }
     }
@@ -178,7 +127,6 @@ const KbarokPlayer = (function() {
         return video ? video.volume : 1;
     }
 
-    // 外部暴露：绑定由 K线Canvas 调用
     function getCurrentTime() {
         const video = getVideo();
         return video ? video.currentTime : 0;

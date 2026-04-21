@@ -4,12 +4,6 @@
  */
 
 (function() {
-    // ==================== 微信环境检测 ====================
-    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
-    if (isWechat) {
-        console.log('[App] 微信内置浏览器 detected');
-    }
-    
     // ==================== DOM 元素 ====================
     const $ = id => document.getElementById(id);
     
@@ -25,13 +19,15 @@
             endDateInput: $('endDateInput'),
             instrumentSelect: $('instrumentSelect'),
             rhythmSelect: $('rhythmSelect'),
-            speedSelect: $('speedSelect'),
+            speedSlider: $('speedSlider'),
+            speedVal: $('speedVal'),
+            genDebug: $('genDebug'),
             infoBar: $('infoBar')
         };
     }
     
     function setDebug(text) {
-        console.log('[App]', text);
+        if (elements.genDebug) elements.genDebug.textContent = text;
     }
     
     // ==================== 工具函数 ====================
@@ -91,35 +87,27 @@
             const changePct = prevClose !== 0 ? (change / prevClose * 100).toFixed(2) : '0.00';
             const isUp = change >= 0;
             
-            const codeEl = $('stockCode');
-            if (codeEl) codeEl.textContent = klineData.code;
-            
-            const priceEl = $('stockPrice');
-            if (priceEl) priceEl.textContent = close !== null ? close.toFixed(2) : '--';
+            $('stockCode').textContent = klineData.code;
+            $('stockPrice').textContent = close !== null ? close.toFixed(2) : '--';
             
             const changeEl = $('stockChange');
-            if (changeEl) {
-                changeEl.textContent = `${isUp ? '+' : ''}${change.toFixed(2)} (${isUp ? '+' : ''}${changePct}%)`;
-                changeEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
-            }
+            changeEl.textContent = `${isUp ? '+' : ''}${change.toFixed(2)} (${isUp ? '+' : ''}${changePct}%)`;
+            changeEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
             
             if (klineData.dates && klineData.dates.length > 0) {
                 const dates = klineData.dates;
-                const rangeEl = $('stockRange');
-                if (rangeEl) rangeEl.textContent = `${dates[0]} ~ ${dates[dates.length - 1]}，${dates.length}交易日`;
+                $('stockRange').textContent = `${dates[0]} ~ ${dates[dates.length - 1]}，${dates.length}交易日`;
             }
         }
         
         if (musicParams) {
-            const instEl = $('musicInstrument');
-            if (instEl) instEl.textContent = '🎹 ' + (musicParams.instrument || '--');
-            const rhythmEl = $('musicRhythm');
-            if (rhythmEl) rhythmEl.textContent = '🥁 ' + (musicParams.rhythm_style || '--');
-            const synthEl = $('musicSynth');
-            if (synthEl) synthEl.textContent = '🔥 ' + (musicParams.synthesis_type || '--');
-            const speedEl = $('musicSpeed');
-            if (speedEl) speedEl.textContent = '⚡ ' + (musicParams.speed || 1.0) + 'x';
+            $('musicInstrument').textContent = '🎹 ' + (musicParams.instrument || '--');
+            $('musicRhythm').textContent = '🥁 ' + (musicParams.rhythm_style || '--');
+            $('musicSynth').textContent = '🔥 ' + (musicParams.synthesis_type || '--');
+            $('musicSpeed').textContent = '⚡ ' + (musicParams.speed || 1.0) + 'x';
         }
+        
+        elements.infoBar.style.display = 'block';
     }
     
     function updateInfoBarDynamic(barIndex, klineData) {
@@ -219,7 +207,7 @@
         };
         if (klineCanvas) {
             klineCanvas.setData(demoData);
-            klineCanvas.startEntry();
+            // 动画统一在 generateMusic finally 里触发，这里只 setData
         }
     }
     
@@ -242,55 +230,20 @@
         klineCache = { code, startDate, endDate, data, lastUpdated: Date.now() };
     }
     
-    // ==================== AudioBuffer → WAV Blob ====================
-    function audioBufferToWavBlob(buffer) {
-        const numChannels = buffer.numberOfChannels;
-        const sampleRate = buffer.sampleRate;
-        const bitDepth = 16;
-        const bytesPerSample = bitDepth / 8;
-        const blockAlign = numChannels * bytesPerSample;
-        const dataLength = buffer.length * numChannels * bytesPerSample;
-        const headerSize = 44;
-        const totalSize = headerSize + dataLength;
-        const ab = new ArrayBuffer(totalSize);
-        const view = new DataView(ab);
-
-        function writeStr(offset, str) {
-            for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-        }
-        writeStr(0,   'RIFF');   view.setUint32(4,  36 + dataLength, true);
-        writeStr(8,   'WAVE');   view.setUint32(12, 16, true);
-        view.setUint16(16, 1, true);
-        view.setUint16(18, numChannels, true);
-        view.setUint32(20, sampleRate, true);
-        view.setUint32(24, sampleRate * blockAlign, true);
-        view.setUint16(28, blockAlign, true);
-        view.setUint16(30, bitDepth, true);
-        writeStr(36,  'data');   view.setUint32(40, dataLength, true);
-
-        const channels = [];
-        for (let c = 0; c < numChannels; c++) channels.push(buffer.getChannelData(c));
-        let idx = headerSize;
-        for (let i = 0; i < buffer.length; i++) {
-            for (let c = 0; c < numChannels; c++) {
-                const s = Math.max(-1, Math.min(1, channels[c][i]));
-                view.setInt16(idx, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-                idx += 2;
-            }
-        }
-        return new Blob([ab], { type: 'audio/wav' });
-    }
-
     // ==================== 音乐生成 ====================
     async function generateMusic() {
-        console.log('[App] 开始生成音乐，klineCanvas:', klineCanvas);
+        console.log('[App] ========== 生成音乐按钮被点击 ==========');
+        console.log('[App] klineCanvas:', klineCanvas);
+        console.log('[App] KbarokAPI:', typeof window.KbarokAPI);
+        console.log('[App] MusicGenerator:', typeof window.MusicGenerator);
+        console.log('[App] KlineFetcher:', typeof window.KlineFetcher);
+        
         const code = elements.codeInput?.value || '';
         const startDate = elements.startDateInput?.value || '';
         const endDate = elements.endDateInput?.value || '';
         const instrument = elements.instrumentSelect?.value || '古筝';
         const rhythm = elements.rhythmSelect?.value || 'Amapiano_非洲节奏';
-        // ✅ 修复1：读 speedSelect（不是 speedSlider）
-        const speed = elements.speedSelect ? parseFloat(elements.speedSelect.value) : 1.0;
+        const speed = elements.speedSlider ? parseFloat(elements.speedSlider.value) / 10 : 1.0;
         
         // 验证标的代码
         let validCode = validateInput(code);
@@ -377,8 +330,9 @@
                     if (klineCanvas && klineData) {
                         console.log('[App] 设置K线数据（重试），数据点数:', klineData.n_points);
                         klineCanvas.setData(klineData);
-                        console.log('[App] 开始K线动画（重试）');
-                        klineCanvas.startEntry();
+                        // 不立即开始动画，等音乐生成后同步播放
+                        // console.log('[App] 开始K线动画（重试）');
+                        // klineCanvas.startEntry();
                     }
                 }
             } else {
@@ -388,117 +342,123 @@
                 if (klineCanvas && klineData) {
                     console.log('[App] 设置K线数据，数据点数:', klineData.n_points);
                     klineCanvas.setData(klineData);
-                    console.log('[App] 开始K线动画');
-                    klineCanvas.startEntry();
+                    // 不立即开始动画，等音乐生成后同步播放
+                    // klineCanvas.startEntry();
                 }
                 setDebug('✅ K线数据已加载');
             }
             
-            // Step 2: 前端生成音乐（使用 MusicGenerator）
-            setDebug('🎵 前端生成音乐中...');
-            
-            // 检查 MusicGenerator 是否可用
-            if (!window.MusicGenerator) {
-                throw new Error('MusicGenerator 未加载');
+            // Step 2: 缓存K线数据供音乐生成使用
+            const klineData = klineResult?.kline || klineResult?.data;
+            if (klineData) {
+                window._klineData = klineData;
             }
             
-            const musicGen = new window.MusicGenerator();
-            musicGen.setSpeed(speed);
-            musicGen.setInstrument(instrument);
+            // Step 3: 生成音乐（纯前端 Web Audio API）
+            setDebug('🎵 生成音乐中...');
+            console.log('[App] 开始生成音乐，参数:', { instrument, rhythm, speed });
             
-            // 准备 K 线数据用于音乐生成
-            const klineData = klineCanvas?.data || klineResult?.kline || klineResult?.data;
-            if (!klineData || !klineData.closes || klineData.closes.length === 0) {
-                throw new Error('无有效 K 线数据');
+            let musicResult;
+            try {
+                musicResult = await KbarokAPI.generateMusic(finalCode, {
+                    instrument,
+                    rhythm_style: rhythm,
+                    speed
+                });
+                console.log('[App] 音乐生成结果:', musicResult);
+            } catch (e) {
+                console.error('[App] 音乐生成异常:', e);
+                musicResult = { success: false, error: e.message };
             }
             
-            // 构造音乐生成器需要的数据格式
-            const df = {
-                close: klineData.closes,
-                volume: klineData.volumes || klineData.closes.map(() => 10000),
-                volatility: klineData.closes.map((c, i) => {
-                    if (i === 0) return 0.02;
-                    return Math.abs(klineData.closes[i] - klineData.closes[i-1]) / klineData.closes[i-1];
-                }),
-                pctChg: klineData.closes.map((c, i) => {
-                    if (i === 0) return 0;
-                    return ((klineData.closes[i] - klineData.closes[i-1]) / klineData.closes[i-1]) * 100;
-                })
-            };
-            
-            // 生成音频
-            const audioResult = await musicGen.generateAudio(df, instrument, rhythm);
+            if (musicResult.success) {
+                // 音乐已通过 Web Audio API 开始播放
+                const musicDur = musicResult.duration || 60;
+                const audioCtx = musicResult.audioContext || window._kbarokAudioCtx;
+                console.log('[App] 音乐播放中，时长:', musicDur, '秒');
 
-            if (!audioResult || !audioResult.audioBuffer) {
-                throw new Error('音频生成失败');
-            }
-
-            // ✅ 修复2：将 AudioBuffer 编码为 WAV blob，赋给 <audio> 元素
-            const wavBlob = audioBufferToWavBlob(audioResult.audioBuffer);
-            const audioUrl = URL.createObjectURL(wavBlob);
-            audioEl.src = audioUrl;
-            audioEl.loop = true;
-            audioEl.play().catch(e => console.warn('[App] 音频播放失败:', e));
-
-            // ✅ 修复3：绑定音频到 KlineCanvas（timeupdate 驱动播放进度）
-            if (klineCanvas) {
-                klineCanvas.bindAudio(audioEl);
-            }
-
-            // ✅ 修复4：保持 K线 Canvas 显示（不切视频模式）
-            if (canvas) canvas.style.display = 'block';
-            if (video) video.style.display = 'none';
-            if (placeholder) placeholder.style.display = 'none';
-
-            // 设置音频元素属性
-            audioEl._code = finalCode;
-            audioEl._instrument = instrument;
-            audioEl._rhythm = rhythm;
-            audioEl._duration = audioResult.duration;
-
-            // 同步 Core 状态
-            if (window.KbarokCore) {
-                window.KbarokCore.state.isPlaying = true;
-                window.KbarokCore.state.audioPlaying = true;
-            }
-            if (window.KbarokUI) window.KbarokUI.syncControlBar();
-
-            // 根据是否使用默认代码显示成功提示
-            if (useDefaultCode || finalCode === '300025.sz') {
-                window.KbarokUI?.showToast('✅ 音乐生成成功！\n⚠️ 代码无效，已使用默认代码 300025\n正在播放音画同步动画...\n\n💡 正确格式：600234、300025、AAPL', 'success');
+                // 启动K线动画，由 Web Audio 时间驱动（V1.0 核心逻辑）
+                if (klineCanvas && audioCtx) {
+                    // 设置回调：K线循环时重新生成音乐（复用AudioContext，无间隙）
+                    klineCanvas.onLoop = () => {
+                        console.log('[App] K线循环，重新生成音乐（复用AudioContext）');
+                        console.log('[App] _klineData存在?', !!window._klineData, 'MusicGenerator存在?', !!window.MusicGenerator);
+                        if (window._klineData && window.MusicGenerator) {
+                            const opts = {
+                                instrument: elements.instrumentSelect?.value || '钢琴',
+                                rhythmStyle: elements.rhythmSelect?.value || '标准4拍',
+                                speed: parseFloat(elements.speedSlider?.value || '10') / 10,
+                                reuseContext: true  // 关键：循环时复用AudioContext
+                            };
+                            console.log('[App] 调用generate，参数:', opts);
+                            window.MusicGenerator.generate(window._klineData, opts).then(result => {
+                                console.log('[App] 音乐重新生成完成, result:', !!result);
+                                if (klineCanvas.bindWebAudio && result) {
+                                    klineCanvas.bindWebAudio(result.ctx, result.startTime, result.duration);
+                                }
+                            }).catch(e => console.error('[App] 音乐重新生成失败:', e));
+                        } else {
+                            console.error('[App] 无法重新生成：_klineData或MusicGenerator缺失');
+                        }
+                    };
+                    // Web Audio 驱动 K线动画
+                    klineCanvas.bindWebAudio(audioCtx, musicResult.startTime, musicDur);
+                }
+                
+                // 根据是否使用默认代码显示不同的成功提示
+                const isUsingDefaultCode = useDefaultCode || finalCode === '300025.sz';
+                if (isUsingDefaultCode) {
+                    window.KbarokUI?.showToast('✅ 音乐生成成功！\n⚠️ 输入代码无效，已自动使用默认代码 300025\n正在播放音画同步动画...\n\n💡 正确格式示例：600234、300025、AAPL', 'success');
+                } else {
+                    window.KbarokUI?.showToast('✅ 音乐生成成功！\n正在播放音画同步动画...', 'success');
+                }
             } else {
-                window.KbarokUI?.showToast('✅ 音乐生成成功！\n正在播放音画同步动画...', 'success');
+                // 音乐生成失败，但继续播放动画（无声模式）
+                console.warn('[App] 音乐生成失败:', musicResult.error);
+                window.KbarokUI?.showToast('⚠️ 音乐生成失败，播放无声动画\n错误: ' + (musicResult.error || '未知错误'), 'warning');
             }
-            setDebug('✅ 音乐播放中，时长: ' + audioResult.duration.toFixed(1) + '秒');
+            
+            // K线动画已在 musicResult.success 里启动（与音乐同步）
+            // 这里不再重复启动，避免冲突
             
         } catch (e) {
             console.error('[App] 生成失败:', e);
             window.KbarokUI?.showToast('❌ 生成失败: ' + e.message + '\n请检查网络连接后重试', 'error');
             setDebug('❌ 错误: ' + e.message);
-
-            // 异常时：保持 K线 Canvas 显示，恢复预制视频但不切换走
-            if (video) video.style.display = 'none';
-            if (canvas) canvas.style.display = 'block';
-            if (placeholder) placeholder.style.display = 'none';
+            
+            // 异常时恢复预制视频
+            if (video) {
+                video.style.display = 'block';
+                const videos = ['assets/video/video1.mp4', 'assets/video/video2.mp4', 'assets/video/video3.mp4'];
+                video.src = videos[Math.floor(Math.random() * videos.length)];
+                video.loop = true;
+                video.muted = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.play().catch(e => console.warn('[App] 恢复预制视频失败:', e));
+            }
+            if (canvas) canvas.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'flex';
         } finally {
             // 无论成功还是失败，都执行以下操作
             if (window.KbarokUI) window.KbarokUI.showLoading(false);
-
-            // 更新信息栏（updateInfoBar 会设置 display:block）
-            const klineForInfo = klineCanvas?.data || klineResult?.kline;
-            if (klineForInfo) {
-                updateInfoBar(klineForInfo, {
-                    instrument,
-                    rhythm_style: rhythm,
-                    speed,
-                    synthesis_type: '潮流音色'
-                });
-            }
-
+            
+            // 更新信息栏
+            updateInfoBar(klineCanvas?.data || klineResult?.kline, {
+                instrument,
+                rhythm_style: rhythm,
+                speed,
+                synthesis_type: '潮流音色'
+            });
+            
             // 收起探索面板
             if (window.KbarokUI?.collapseExplore) {
                 window.KbarokUI.collapseExplore();
             }
+            
+            setDebug('');
+
+            // K线动画已在前面与音乐同步启动
         }
     }
     
@@ -538,8 +498,9 @@
                 rhythmSel.value = 'Amapiano_非洲节奏';
             }
             
-            if (elements.speedSelect) {
-                elements.speedSelect.value = '1'; // 1x = 正常速度
+            if (elements.speedSlider) {
+                elements.speedSlider.value = 20;
+                if (elements.speedVal) elements.speedVal.textContent = '2.0';
             }
             
             console.log('[App] V2配置加载完成');
@@ -550,11 +511,97 @@
     
     // ==================== 事件绑定 ====================
     function bindEvents() {
-        $('btnStop')?.addEventListener('click', () => window.KbarokPlayer?.toggle());
-        $('btnListen')?.addEventListener('click', () => window.KbarokPlayer?.toggleAudio());
+        $('btnStop')?.addEventListener('click', async () => {
+            const kbarokAudio = document.getElementById('kbarokAudio');
+            const video = document.getElementById('mainVideo');
+            
+            if (kbarokAudio || window._kbarokAudioCtx) {
+                // 音画生成模式：控制 Web Audio
+                const ctx = window._kbarokAudioCtx;
+                if (!ctx) return;
+                
+                if (ctx.state === 'running') {
+                    await ctx.suspend();
+                    if (klineCanvas && klineCanvas.webAudioAnimId) {
+                        cancelAnimationFrame(klineCanvas.webAudioAnimId);
+                    }
+                    $('btnStop').textContent = '播放';
+                } else if (ctx.state === 'suspended') {
+                    await ctx.resume();
+                    if (klineCanvas && klineCanvas.audioContext) {
+                        klineCanvas.bindWebAudio(klineCanvas.audioContext, klineCanvas.audioStartTime, klineCanvas.musicDuration);
+                    }
+                    $('btnStop').textContent = '停止';
+                }
+            } else if (video && !video.paused) {
+                // 视频模式：暂停/恢复视频
+                video.pause();
+                $('btnStop').textContent = '播放';
+            } else if (video) {
+                video.play().catch(() => {});
+                $('btnStop').textContent = '停止';
+            }
+        });
+        $('btnListen')?.addEventListener('click', async () => {
+            const kbarokAudio = document.getElementById('kbarokAudio');
+            const video = document.getElementById('mainVideo');
+            
+            if (kbarokAudio) {
+                // 音画生成模式：控制 Web Audio
+                const masterGain = window._kbarokMasterGain;
+                if (!masterGain) return;
+                if (masterGain.gain.value > 0) {
+                    masterGain._prevVolume = masterGain.gain.value;
+                    masterGain.gain.setValueAtTime(0, window._kbarokAudioCtx?.currentTime || 0);
+                    $('btnListen').textContent = '🔇';
+                    $('btnListen').classList.add('listen-active');
+                } else {
+                    masterGain.gain.setValueAtTime(masterGain._prevVolume || 0.7, window._kbarokAudioCtx?.currentTime || 0);
+                    $('btnListen').textContent = '试听';
+                    $('btnListen').classList.remove('listen-active');
+                }
+            } else if (video) {
+                // 视频模式：控制视频静音
+                video.muted = !video.muted;
+                if (video.muted) {
+                    $('btnListen').textContent = '试听';
+                    $('btnListen').classList.remove('listen-active');
+                } else {
+                    $('btnListen').textContent = '🔇';
+                    $('btnListen').classList.add('listen-active');
+                }
+            }
+        });
         $('btnExplore')?.addEventListener('click', () => window.KbarokUI?.toggleExplore());
-        $('btnGen')?.addEventListener('click', generateMusic);
-        
+        $('btnCreate')?.addEventListener('click', () => window.KbarokUI?.toggleCreate());
+        // 音乐生成按钮 - 使用多种方式绑定确保可靠
+        const btnGen = $('btnGenerate');
+        console.log('[App] btnGenerate element:', btnGen);
+        if (btnGen) {
+            // 方式1: addEventListener
+            btnGen.addEventListener('click', async function(e) {
+                console.log('[App] btnGenerate clicked via addEventListener!');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // 立即恢复 AudioContext（解决浏览器自动播放策略）
+                const ctx = window._kbarokAudioCtx;
+                if (ctx && ctx.state === 'suspended') {
+                    console.log('[App] Resuming AudioContext...');
+                    await ctx.resume();
+                    console.log('[App] AudioContext resumed:', ctx.state);
+                }
+                
+                generateMusic();
+            });
+            
+            // 添加视觉反馈
+            btnGen.style.cursor = 'pointer';
+            console.log('[App] btnGenerate 事件绑定完成');
+} else {
+            console.error('[App] btnGenerate not found!');
+        }
+
         // 全屏按钮
         $('btnFullscreen')?.addEventListener('click', () => {
             const doc = document;
@@ -578,10 +625,11 @@
         });
 
         
-        elements.speedSelect?.addEventListener('change', () => {
-            const val = parseFloat(elements.speedSelect.value) || 1.0;
+        elements.speedSlider?.addEventListener('input', () => {
+            const val = parseInt(elements.speedSlider.value) || 10;
+            if (elements.speedVal) elements.speedVal.textContent = (val / 10).toFixed(1);
             if (window.KbarokCore) {
-                window.KbarokCore.state.exploreParams.speed = val;
+                window.KbarokCore.state.exploreParams.speed = val / 10;
             }
         });
         
@@ -607,19 +655,9 @@
         }
         
         $('btnDownload')?.addEventListener('click', () => {
-            try {
-                const dr = window.DraftRecorder;
-                if (!dr) { window.KbarokUI?.showToast('⚠️ 录制组件未就绪', 2000); return; }
-                // 检查详细错误
-                if (dr._lastError) {
-                    console.error('[下载] 上次错误:', dr._lastError);
-                    dr._lastError = null;
-                }
-                dr.download();
-            } catch (err) {
-                console.error('[下载] 错误:', err);
-                window.KbarokUI?.showToast('⚠️ 录制失败: ' + (err.message || err), 3000);
-            }
+            const dr = window.DraftRecorder;
+            if (!dr) return;
+            dr.download();
         });
         
         document.addEventListener('keydown', e => {
@@ -645,9 +683,6 @@
     async function init() {
         cacheElements();
         initKlineCanvas();
-        
-        // 默认显示K线Canvas动画（不是视频）
-        loadDemoKlineData();
         
         // 初始化日期输入框默认值（5个月前到今天）
         const today = new Date();
